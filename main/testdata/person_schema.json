@@ -1,0 +1,25 @@
+{
+  "$id": "http://michal.linhard.sk/schemas/person",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "born": {
+      "type": "string",
+      "format": "date"
+    },
+    "name": {
+      "type": "string"
+    },
+    "surname": {
+      "type": "string"
+    },
+    "sex": {
+      "type": "string",
+      "enum": [
+        "M",
+        "F",
+        "X"
+      ]
+    }
+  }
+}

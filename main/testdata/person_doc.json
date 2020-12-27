@@ -1,0 +1,7 @@
+{
+  "$schema": "http://michal.linhard.sk/schemas/person",
+  "born": "1980-01-01",
+  "name": "John",
+  "surname": "First",
+  "sex": "M"
+}
