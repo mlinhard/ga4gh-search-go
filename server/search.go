@@ -4,34 +4,62 @@ import (
 	"github.com/mlinhard/ga4gh-search-go/api"
 	"github.com/mlinhard/ga4gh-search-go/schema"
 	"github.com/sourcegraph/go-jsonschema/jsonschema"
+	"reflect"
 )
 
 type table struct {
 	name        string
 	description string
+	schema      *jsonschema.Schema
 	data        []interface{}
 }
 
 // this is an internal server api and will be subject to heavy changes in initial stages of development
 type SearchService struct {
-	tables map[string]*table
+	tables          map[string]*table
+	schemaGenerator *schema.Generator
 }
 
 func NewSearchService() (*SearchService, error) {
 	server := new(SearchService)
 	server.tables = make(map[string]*table)
+	server.schemaGenerator = schema.NewGenerator()
 	return server, nil
 }
 
-func (s *SearchService) AddTable(name string, description string, data []interface{}) error {
-	s.tables[name] = &table{name: name, description: description, data: data}
+func (s *SearchService) SchemaHintEnum(values ...interface{}) {
+	if len(values) == 0 {
+		panic("empty enumeration")
+	}
+	s.schemaGenerator.SchemaHintEnum(reflect.TypeOf(values[0]), jsonschema.EnumList{values})
+}
+
+func (s *SearchService) SchemaHintFormat(v interface{}, format string) {
+	var jsonSchemaFormat = jsonschema.Format(format)
+	s.schemaGenerator.SchemaHintFormat(reflect.TypeOf(v), &jsonSchemaFormat)
+}
+
+func (s *SearchService) SchemaHintPattern(v reflect.Type, pattern *string) {
+	s.schemaGenerator.SchemaHintPattern(v, pattern)
+}
+
+func (s *SearchService) AddTableAutoSchema(name string, description string, data []interface{}) error {
+	schema, err := s.generateDataModel(data)
+	if err != nil {
+		return err
+	}
+	s.tables[name] = &table{name: name, description: description, data: data, schema: schema}
 	return nil
+}
+
+func (s *SearchService) AddTable(name string, description string, data []interface{}, schema *jsonschema.Schema) {
+	s.tables[name] = &table{name: name, description: description, data: data, schema: schema}
 }
 
 func (s *SearchService) Tables() (*api.ListTablesResponse, error) {
 	var result = make([]*api.Table, 0, len(s.tables))
 	for _, table := range s.tables {
-		apiTable, err := toApi(table)
+		apiTable, err := s.toApi(table)
 		if err != nil {
 			return nil, err
 		}
@@ -44,27 +72,23 @@ func (s *SearchService) Tables() (*api.ListTablesResponse, error) {
 	}, nil
 }
 
-func toApi(table *table) (*api.Table, error) {
-	schema, err := generateDataModel(table)
-	if err != nil {
-		return nil, err
-	}
+func (s *SearchService) toApi(table *table) (*api.Table, error) {
 	return &api.Table{
 		Name:        table.name,
 		Description: table.description,
-		DataModel:   schema,
+		DataModel:   table.schema,
 		Errors:      nil,
 	}, nil
 }
 
-func generateDataModel(table *table) (*jsonschema.Schema, error) {
+func (s *SearchService) generateDataModel(data []interface{}) (*jsonschema.Schema, error) {
 	var v interface{}
-	if table.data == nil || len(table.data) == 0 {
+	if data == nil || len(data) == 0 {
 		v = nil
 	} else {
-		v = table.data[0]
+		v = data[0]
 	}
-	return schema.GenerateSchema(v)
+	return s.schemaGenerator.GenerateSchema(v)
 }
 
 // GET /table/{table_name}/info
@@ -73,7 +97,7 @@ func (s *SearchService) TableInfo(name string) (*api.Table, error) {
 	if table == nil {
 		return nil, nil
 	}
-	return toApi(table)
+	return s.toApi(table)
 }
 
 // GET /table/{table_name}/data
@@ -82,7 +106,7 @@ func (s *SearchService) TableData(name string) (*api.TableData, error) {
 	if table == nil {
 		return nil, nil
 	}
-	apiTable, err := toApi(table)
+	apiTable, err := s.toApi(table)
 	if err != nil {
 		return nil, err
 	}
