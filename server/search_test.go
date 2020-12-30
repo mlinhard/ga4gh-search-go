@@ -2,6 +2,7 @@ package server
 
 import (
 	"github.com/mlinhard/ga4gh-search-go/api"
+	. "github.com/mlinhard/ga4gh-search-go/schema_test"
 	"github.com/sourcegraph/go-jsonschema/jsonschema"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -24,8 +25,8 @@ func TestSearch(t *testing.T) {
 	if err != nil {
 		t.Errorf("creating server: %v", err)
 	}
-	server.AddTable("persons", "Table of persons", getDemoPersons())
-	server.AddTable("pets", "Table of pets", getDemoPets())
+	server.AddTableAutoSchema("persons", "Table of persons", getDemoPersons())
+	server.AddTableAutoSchema("pets", "Table of pets", getDemoPets())
 
 	response, err := server.Tables()
 	assert.Equal(t, 2, len(response.Tables))
@@ -40,20 +41,27 @@ func TestSearch(t *testing.T) {
 	assert.Equal(t, "pets", petsTable.Name)
 	assert.Equal(t, "Table of pets", petsTable.Description)
 
-	personSchema := personsTable.DataModel
-	assertType(t, jsonschema.ObjectType, personSchema)
+	personSchema := schemaTester(t, personsTable).
+		AssertType(jsonschema.ObjectType).
+		AssertNumProperties(4).
+		AssertOnlyDef("Type", "Properties")
 
-	assert.Equal(t, 4, len(*personSchema.Properties))
-
-	assertType(t, jsonschema.StringType, (*personSchema.Properties)["name"])
-	assertType(t, jsonschema.StringType, (*personSchema.Properties)["surname"])
-	assertType(t, jsonschema.StringType, (*personSchema.Properties)["sex"])
-	assertType(t, jsonschema.StringType, (*personSchema.Properties)["born"])
+	personSchema.Property("name").
+		AssertType(jsonschema.StringType).
+		AssertOnlyDef("Type")
+	personSchema.Property("surname").
+		AssertType(jsonschema.StringType).
+		AssertOnlyDef("Type")
+	personSchema.Property("sex").
+		AssertType(jsonschema.StringType).
+		AssertOnlyDef("Type")
+	personSchema.Property("born").
+		AssertType(jsonschema.StringType).
+		AssertOnlyDef("Type")
 }
 
-func assertType(t *testing.T, expectedType jsonschema.PrimitiveType, schema *jsonschema.Schema) {
-	assert.Equal(t, 1, schema.Type.Len())
-	assert.Equal(t, expectedType, schema.Type[0])
+func schemaTester(t *testing.T, table *api.Table) *SchemaTester {
+	return NewSchemaTester(t, table.DataModel)
 }
 
 func toTableMap(tables []*api.Table) map[string]*api.Table {

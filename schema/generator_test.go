@@ -3,6 +3,7 @@ package schema
 import (
 	"encoding/json"
 	"fmt"
+	. "github.com/mlinhard/ga4gh-search-go/schema_test"
 	"github.com/sourcegraph/go-jsonschema/jsonschema"
 	"github.com/stretchr/testify/assert"
 	"github.com/xeipuuv/gojsonschema"
@@ -125,6 +126,7 @@ func Test_Generate_Struct(t *testing.T) {
 
 	schema := assertSchemaGenerationAndValidation(t, v, "struct1").
 		AssertType(jsonschema.ObjectType).
+		AssertNumProperties(6).
 		AssertOnlyDef("Type", "Properties")
 
 	schema.Property("name").
@@ -239,7 +241,7 @@ func assertSchemaGenerationAndValidation(t *testing.T, object interface{}, debug
 		writeTestFile(t, schemaBytes, "debug_schemas/"+debugFilePrefix+"_schema.json")
 	}
 	validate(t, bytes, schemaBytes)
-	return &SchemaTester{schema, t}
+	return NewSchemaTester(t, schema)
 }
 
 func validate(t *testing.T, jsonBytes []byte, schemaBytes []byte) {
@@ -308,76 +310,6 @@ type Person struct {
 type Address struct {
 	Street string `json:"street"`
 	Number int    `json:"number"`
-}
-
-type SchemaTester struct {
-	Schema *jsonschema.Schema
-	t      *testing.T
-}
-
-func (s *SchemaTester) AssertType(expectedType jsonschema.PrimitiveType) *SchemaTester {
-	assert.Equal(s.t, 1, s.Schema.Type.Len())
-	assert.Equal(s.t, expectedType, s.Schema.Type[0])
-	return s
-}
-
-func (s *SchemaTester) Property(name string) *SchemaTester {
-	properties := *s.Schema.Properties
-	assert.NotNil(s.t, properties, "schema doesn't have properties")
-	propertySchema := properties[name]
-	assert.NotNil(s.t, propertySchema, "property %v not found", name)
-	return &SchemaTester{propertySchema, s.t}
-}
-
-func (s *SchemaTester) Items() *SchemaTester {
-	items := *s.Schema.Items
-	assert.NotNil(s.t, items, "schema doesn't have items sub-schema")
-	assert.NotNil(s.t, items.Schema, "schema doesn't have items sub-schema")
-	return &SchemaTester{items.Schema, s.t}
-}
-
-func (s *SchemaTester) ItemsMany(i int) *SchemaTester {
-	items := *s.Schema.Items
-	assert.NotNil(s.t, items, "schema doesn't have items sub-schema")
-	assert.NotNil(s.t, items.Schemas, "schema doesn't have items array sub-schema")
-	return &SchemaTester{items.Schemas[i], s.t}
-}
-
-func (s *SchemaTester) AssertEnums(values ...interface{}) *SchemaTester {
-	assert.NotNil(s.t, s.Schema.Enum, "schema doesn't have enum")
-	assert.Equal(s.t, len(values), len(s.Schema.Enum))
-	for i, v := range values {
-		assert.Equal(s.t, v, s.Schema.Enum[i], "The %v-th value doesn't match", i)
-	}
-	return s
-}
-
-func (s *SchemaTester) AssertOnlyDef(definedProperties ...string) *SchemaTester {
-	sv := reflect.ValueOf(s.Schema)
-	for sv.Type().Kind() == reflect.Ptr {
-		sv = sv.Elem()
-	}
-	allowed := make(map[string]bool)
-	for _, prop := range definedProperties {
-		allowed[prop] = true
-	}
-	st := sv.Type()
-	for i := 0; i < st.NumField(); i++ {
-		ft := st.Field(i)
-		fv := sv.Field(i)
-		if allowed[ft.Name] {
-			assert.False(s.t, fv.IsZero(), "Field %v should be defined", ft.Name)
-		} else {
-			assert.True(s.t, fv.IsZero(), "Field %v should be undefined", ft.Name)
-		}
-	}
-	return s
-}
-
-func (s *SchemaTester) AssertFormat(expectedFormat string) *SchemaTester {
-	assert.NotNil(s.t, *s.Schema.Format, "schema doesn't have format")
-	assert.Equal(s.t, expectedFormat, string(*s.Schema.Format))
-	return s
 }
 
 func (d JSONDate) MarshalJSON() ([]byte, error) {
