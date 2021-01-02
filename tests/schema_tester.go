@@ -1,4 +1,4 @@
-package schema_test
+package tests
 
 import (
 	"github.com/sourcegraph/go-jsonschema/jsonschema"
@@ -57,7 +57,11 @@ func (s *SchemaTester) AssertEnums(values ...interface{}) *SchemaTester {
 }
 
 func (s *SchemaTester) AssertOnlyDef(definedProperties ...string) *SchemaTester {
-	sv := reflect.ValueOf(s.Schema)
+	AssertOnlyDef(s.t, reflect.ValueOf(s.Schema), definedProperties...)
+	return s
+}
+
+func AssertOnlyDef(t *testing.T, sv reflect.Value, definedProperties ...string) {
 	for sv.Type().Kind() == reflect.Ptr {
 		sv = sv.Elem()
 	}
@@ -70,12 +74,11 @@ func (s *SchemaTester) AssertOnlyDef(definedProperties ...string) *SchemaTester 
 		ft := st.Field(i)
 		fv := sv.Field(i)
 		if allowed[ft.Name] {
-			assert.False(s.t, fv.IsZero(), "Field %v should be defined", ft.Name)
+			assert.False(t, fv.IsZero(), "Field %v should be defined", ft.Name)
 		} else {
-			assert.True(s.t, fv.IsZero(), "Field %v should be undefined", ft.Name)
+			assert.True(t, fv.IsZero(), "Field %v should be undefined", ft.Name)
 		}
 	}
-	return s
 }
 
 func (s *SchemaTester) AssertFormat(expectedFormat string) *SchemaTester {

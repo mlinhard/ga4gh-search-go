@@ -2,7 +2,7 @@ package server
 
 import (
 	"github.com/mlinhard/ga4gh-search-go/api"
-	. "github.com/mlinhard/ga4gh-search-go/schema_test"
+	. "github.com/mlinhard/ga4gh-search-go/tests"
 	"github.com/sourcegraph/go-jsonschema/jsonschema"
 	"github.com/stretchr/testify/assert"
 	"testing"

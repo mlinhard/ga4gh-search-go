@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/mlinhard/ga4gh-search-go/schema"
 	"github.com/mlinhard/ga4gh-search-go/server"
+	"github.com/mlinhard/ga4gh-search-go/sql"
 	"os"
 	"os/signal"
 	"syscall"
@@ -27,6 +28,10 @@ type Person struct {
 }
 
 func main() {
+	sql.Main()
+}
+
+func main2() {
 	// create HTTP server
 	server, err := server.NewHttpSearchServer("localhost:8080")
 	if err != nil {

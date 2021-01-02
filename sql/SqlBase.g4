@@ -14,133 +14,26 @@
 
 grammar SqlBase;
 
-tokens {
-    DELIMITER
-}
-
-singleStatement
-    : statement EOF
-    ;
-
-standaloneExpression
-    : expression EOF
-    ;
-
-standalonePathSpecification
-    : pathSpecification EOF
-    ;
-
-standaloneType
-    : type EOF
-    ;
-
 statement
     : query                                                            #statementDefault
-    | USE schema=identifier                                            #use
-    | USE catalog=identifier '.' schema=identifier                     #use
-    | CREATE SCHEMA (IF NOT EXISTS)? qualifiedName
-        (AUTHORIZATION principal)?
-        (WITH properties)?                                             #createSchema
-    | DROP SCHEMA (IF EXISTS)? qualifiedName (CASCADE | RESTRICT)?     #dropSchema
-    | ALTER SCHEMA qualifiedName RENAME TO identifier                  #renameSchema
-    | ALTER SCHEMA qualifiedName SET AUTHORIZATION principal           #setSchemaAuthorization
-    | CREATE TABLE (IF NOT EXISTS)? qualifiedName columnAliases?
-        (COMMENT string)?
-        (WITH properties)? AS (query | '('query')')
-        (WITH (NO)? DATA)?                                             #createTableAsSelect
-    | CREATE TABLE (IF NOT EXISTS)? qualifiedName
-        '(' tableElement (',' tableElement)* ')'
-         (COMMENT string)?
-         (WITH properties)?                                            #createTable
-    | DROP TABLE (IF EXISTS)? qualifiedName                            #dropTable
-    | INSERT INTO qualifiedName columnAliases? query                   #insertInto
-    | DELETE FROM qualifiedName (WHERE booleanExpression)?             #delete
-    | ALTER TABLE (IF EXISTS)? from=qualifiedName RENAME TO to=qualifiedName        #renameTable
-    | COMMENT ON TABLE qualifiedName IS (string | NULL)                #commentTable
-    | COMMENT ON COLUMN qualifiedName IS (string | NULL)               #commentColumn
-    | ALTER TABLE (IF EXISTS)? tableName=qualifiedName
-        RENAME COLUMN (IF EXISTS)? from=identifier TO to=identifier    #renameColumn
-    | ALTER TABLE (IF EXISTS)? tableName=qualifiedName
-        DROP COLUMN (IF EXISTS)? column=qualifiedName                  #dropColumn
-    | ALTER TABLE (IF EXISTS)? tableName=qualifiedName
-        ADD COLUMN (IF NOT EXISTS)? column=columnDefinition            #addColumn
-    | ALTER TABLE tableName=qualifiedName SET AUTHORIZATION principal  #setTableAuthorization
-    | ANALYZE qualifiedName (WITH properties)?                         #analyze
-    | CREATE (OR REPLACE)?  MATERIALIZED VIEW
-        (IF NOT EXISTS)?
-        qualifiedName
-        (COMMENT string)?
-        (WITH properties)? AS query                                    #createMaterializedView
-    | CREATE (OR REPLACE)? VIEW qualifiedName
-        (COMMENT string)?
-        (SECURITY (DEFINER | INVOKER))? AS query                       #createView
-    | REFRESH MATERIALIZED VIEW qualifiedName                          #refreshMaterializedView
-    | DROP MATERIALIZED VIEW (IF EXISTS)? qualifiedName                #dropMaterializedView
-    | DROP VIEW (IF EXISTS)? qualifiedName                             #dropView
-    | ALTER VIEW from=qualifiedName RENAME TO to=qualifiedName         #renameView
-    | ALTER VIEW from=qualifiedName SET AUTHORIZATION principal        #setViewAuthorization
-    | CALL qualifiedName '(' (callArgument (',' callArgument)*)? ')'   #call
-    | CREATE ROLE name=identifier
-        (WITH ADMIN grantor)?                                          #createRole
-    | DROP ROLE name=identifier                                        #dropRole
-    | GRANT
-        roles
-        TO principal (',' principal)*
-        (WITH ADMIN OPTION)?
-        (GRANTED BY grantor)?                                          #grantRoles
-    | REVOKE
-        (ADMIN OPTION FOR)?
-        roles
-        FROM principal (',' principal)*
-        (GRANTED BY grantor)?                                          #revokeRoles
-    | SET ROLE (ALL | NONE | role=identifier)                          #setRole
-    | GRANT
-        (privilege (',' privilege)* | ALL PRIVILEGES)
-        ON (SCHEMA | TABLE)? qualifiedName
-        TO grantee=principal
-        (WITH GRANT OPTION)?                                           #grant
-    | REVOKE
-        (GRANT OPTION FOR)?
-        (privilege (',' privilege)* | ALL PRIVILEGES)
-        ON (SCHEMA | TABLE)? qualifiedName
-        FROM grantee=principal                                         #revoke
-    | SHOW GRANTS
-        (ON TABLE? qualifiedName)?                                     #showGrants
-    | EXPLAIN ANALYZE? VERBOSE?
-        ('(' explainOption (',' explainOption)* ')')? statement        #explain
-    | SHOW CREATE TABLE qualifiedName                                  #showCreateTable
-    | SHOW CREATE SCHEMA qualifiedName                                 #showCreateSchema
-    | SHOW CREATE VIEW qualifiedName                                   #showCreateView
-    | SHOW CREATE MATERIALIZED VIEW qualifiedName                      #showCreateMaterializedView
     | SHOW TABLES ((FROM | IN) qualifiedName)?
-        (LIKE pattern=string (ESCAPE escape=string)?)?                 #showTables
+        (LIKE pattern=gstring (ESCAPE escape=gstring)?)?                 #showTables
     | SHOW SCHEMAS ((FROM | IN) identifier)?
-        (LIKE pattern=string (ESCAPE escape=string)?)?                 #showSchemas
+        (LIKE pattern=gstring (ESCAPE escape=gstring)?)?                 #showSchemas
     | SHOW CATALOGS
-        (LIKE pattern=string (ESCAPE escape=string)?)?                 #showCatalogs
+        (LIKE pattern=gstring (ESCAPE escape=gstring)?)?                 #showCatalogs
     | SHOW COLUMNS (FROM | IN) qualifiedName?
-        (LIKE pattern=string (ESCAPE escape=string)?)?                 #showColumns
+        (LIKE pattern=gstring (ESCAPE escape=gstring)?)?                 #showColumns
     | SHOW STATS FOR qualifiedName                                     #showStats
     | SHOW STATS FOR '(' querySpecification ')'                        #showStatsForQuery
-    | SHOW CURRENT? ROLES ((FROM | IN) identifier)?                    #showRoles
-    | SHOW ROLE GRANTS ((FROM | IN) identifier)?                       #showRoleGrants
     | DESCRIBE qualifiedName                                           #showColumns
     | DESC qualifiedName                                               #showColumns
     | SHOW FUNCTIONS
-        (LIKE pattern=string (ESCAPE escape=string)?)?                 #showFunctions
+        (LIKE pattern=gstring (ESCAPE escape=gstring)?)?                 #showFunctions
     | SHOW SESSION
-        (LIKE pattern=string (ESCAPE escape=string)?)?                 #showSession
+        (LIKE pattern=gstring (ESCAPE escape=gstring)?)?                 #showSession
     | SET SESSION qualifiedName EQ expression                          #setSession
     | RESET SESSION qualifiedName                                      #resetSession
-    | START TRANSACTION (transactionMode (',' transactionMode)*)?      #startTransaction
-    | COMMIT WORK?                                                     #commit
-    | ROLLBACK WORK?                                                   #rollback
-    | PREPARE identifier FROM statement                                #prepare
-    | DEALLOCATE PREPARE identifier                                    #deallocate
-    | EXECUTE identifier (USING expression (',' expression)*)?         #execute
-    | DESCRIBE INPUT identifier                                        #describeInput
-    | DESCRIBE OUTPUT identifier                                       #describeOutput
-    | SET PATH pathSpecification                                       #setPath
     ;
 
 query
@@ -149,27 +42,6 @@ query
 
 with
     : WITH RECURSIVE? namedQuery (',' namedQuery)*
-    ;
-
-tableElement
-    : columnDefinition
-    | likeClause
-    ;
-
-columnDefinition
-    : identifier type (NOT NULL)? (COMMENT string)? (WITH properties)?
-    ;
-
-likeClause
-    : LIKE qualifiedName (optionType=(INCLUDING | EXCLUDING) PROPERTIES)?
-    ;
-
-properties
-    : '(' property (',' property)* ')'
-    ;
-
-property
-    : identifier EQ expression
     ;
 
 queryNoWith:
@@ -298,14 +170,13 @@ expression
     ;
 
 booleanExpression
-    : valueExpression predicate[$valueExpression.ctx]?             #predicated
+    : valueExpression predicate?                                   #predicated
     | NOT booleanExpression                                        #logicalNot
     | left=booleanExpression operator=AND right=booleanExpression  #logicalBinary
     | left=booleanExpression operator=OR right=booleanExpression   #logicalBinary
     ;
 
-// workaround for https://github.com/antlr/antlr4/issues/780
-predicate[ParserRuleContext value]
+predicate
     : comparisonOperator right=valueExpression                            #comparison
     | comparisonOperator comparisonQuantifier '(' query ')'               #quantifiedComparison
     | NOT? BETWEEN lower=valueExpression AND upper=valueExpression        #between
@@ -328,19 +199,19 @@ valueExpression
 primaryExpression
     : NULL                                                                                #nullLiteral
     | interval                                                                            #intervalLiteral
-    | identifier string                                                                   #typeConstructor
-    | DOUBLE PRECISION string                                                             #typeConstructor
+    | identifier gstring                                                                   #typeConstructor
+    | DOUBLE PRECISION gstring                                                             #typeConstructor
     | number                                                                              #numericLiteral
     | booleanValue                                                                        #booleanLiteral
-    | string                                                                              #stringLiteral
+    | gstring                                                                              #stringLiteral
     | BINARY_LITERAL                                                                      #binaryLiteral
     | PARAMETER                                                                           #parameter
     | POSITION '(' valueExpression IN valueExpression ')'                                 #position
     | '(' expression (',' expression)+ ')'                                                #rowConstructor
     | ROW '(' expression (',' expression)* ')'                                            #rowConstructor
-    | qualifiedName '(' ASTERISK ')' filter? over?                                        #functionCall
+    | qualifiedName '(' ASTERISK ')' filter?                                              #functionCall
     | qualifiedName '(' (setQuantifier? expression (',' expression)*)?
-        (ORDER BY sortItem (',' sortItem)*)? ')' filter? (nullTreatment? over)?           #functionCall
+        (ORDER BY sortItem (',' sortItem)*)? ')' filter?                                  #functionCall
     | identifier '->' expression                                                          #lambda
     | '(' (identifier (',' identifier)*)? ')' '->' expression                             #lambda
     | '(' query ')'                                                                       #subqueryExpression
@@ -348,8 +219,8 @@ primaryExpression
     | EXISTS '(' query ')'                                                                #exists
     | CASE operand=expression whenClause+ (ELSE elseExpression=expression)? END           #simpleCase
     | CASE whenClause+ (ELSE elseExpression=expression)? END                              #searchedCase
-    | CAST '(' expression AS type ')'                                                     #cast
-    | TRY_CAST '(' expression AS type ')'                                                 #cast
+    | CAST '(' expression AS gtype ')'                                                     #cast
+    | TRY_CAST '(' expression AS gtype ')'                                                 #cast
     | ARRAY '[' (expression (',' expression)*)? ']'                                       #arrayConstructor
     | value=primaryExpression '[' index=valueExpression ']'                               #subscript
     | identifier                                                                          #columnReference
@@ -368,19 +239,14 @@ primaryExpression
     | GROUPING '(' (qualifiedName (',' qualifiedName)*)? ')'                              #groupingOperation
     ;
 
-nullTreatment
-    : IGNORE NULLS
-    | RESPECT NULLS
-    ;
-
-string
+gstring
     : STRING                                #basicStringLiteral
     | UNICODE_STRING (UESCAPE STRING)?      #unicodeStringLiteral
     ;
 
 timeZoneSpecifier
     : TIME ZONE interval  #timeZoneInterval
-    | TIME ZONE string    #timeZoneString
+    | TIME ZONE gstring    #timeZoneString
     ;
 
 comparisonOperator
@@ -396,7 +262,7 @@ booleanValue
     ;
 
 interval
-    : INTERVAL sign=(PLUS | MINUS)? string from=intervalField (TO to=intervalField)?
+    : INTERVAL sign=(PLUS | MINUS)? gstring from=intervalField (TO to=intervalField)?
     ;
 
 intervalField
@@ -407,7 +273,7 @@ normalForm
     : NFD | NFC | NFKD | NFKC
     ;
 
-type
+gtype
     : ROW '(' rowField (',' rowField)* ')'                                         #rowType
     | INTERVAL from=intervalField (TO to=intervalField)?                           #intervalType
     | base=TIMESTAMP ('(' precision = typeParameter ')')? (WITHOUT TIME ZONE)?     #dateTimeType
@@ -415,18 +281,18 @@ type
     | base=TIME ('(' precision = typeParameter ')')? (WITHOUT TIME ZONE)?          #dateTimeType
     | base=TIME ('(' precision = typeParameter ')')? WITH TIME ZONE                #dateTimeType
     | DOUBLE PRECISION                                                             #doublePrecisionType
-    | ARRAY '<' type '>'                                                           #legacyArrayType
-    | MAP '<' keyType=type ',' valueType=type '>'                                  #legacyMapType
-    | type ARRAY ('[' INTEGER_VALUE ']')?                                          #arrayType
+    | ARRAY '<' gtype '>'                                                           #legacyArrayType
+    | MAP '<' keyType=gtype ',' valueType=gtype '>'                                  #legacyMapType
+    | gtype ARRAY ('[' INTEGER_VALUE ']')?                                          #arrayType
     | identifier ('(' typeParameter (',' typeParameter)* ')')?                     #genericType
     ;
 
 rowField
-    : type
-    | identifier type;
+    : gtype
+    | identifier gtype;
 
 typeParameter
-    : INTEGER_VALUE | type
+    : INTEGER_VALUE | gtype
     ;
 
 whenClause
@@ -437,84 +303,8 @@ filter
     : FILTER '(' WHERE booleanExpression ')'
     ;
 
-over
-    : OVER '('
-        (PARTITION BY partition+=expression (',' partition+=expression)*)?
-        (ORDER BY sortItem (',' sortItem)*)?
-        windowFrame?
-      ')'
-    ;
-
-windowFrame
-    : frameType=RANGE start=frameBound
-    | frameType=ROWS start=frameBound
-    | frameType=GROUPS start=frameBound
-    | frameType=RANGE BETWEEN start=frameBound AND end=frameBound
-    | frameType=ROWS BETWEEN start=frameBound AND end=frameBound
-    | frameType=GROUPS BETWEEN start=frameBound AND end=frameBound
-    ;
-
-frameBound
-    : UNBOUNDED boundType=PRECEDING                 #unboundedFrame
-    | UNBOUNDED boundType=FOLLOWING                 #unboundedFrame
-    | CURRENT ROW                                   #currentRowBound
-    | expression boundType=(PRECEDING | FOLLOWING)  #boundedFrame
-    ;
-
-
-explainOption
-    : FORMAT value=(TEXT | GRAPHVIZ | JSON)                 #explainFormat
-    | TYPE value=(LOGICAL | DISTRIBUTED | VALIDATE | IO)    #explainType
-    ;
-
-transactionMode
-    : ISOLATION LEVEL levelOfIsolation    #isolationLevel
-    | READ accessMode=(ONLY | WRITE)      #transactionAccessMode
-    ;
-
-levelOfIsolation
-    : READ UNCOMMITTED                    #readUncommitted
-    | READ COMMITTED                      #readCommitted
-    | REPEATABLE READ                     #repeatableRead
-    | SERIALIZABLE                        #serializable
-    ;
-
-callArgument
-    : expression                    #positionalArgument
-    | identifier '=>' expression    #namedArgument
-    ;
-
-pathElement
-    : identifier '.' identifier     #qualifiedArgument
-    | identifier                    #unqualifiedArgument
-    ;
-
-pathSpecification
-    : pathElement (',' pathElement)*
-    ;
-
-privilege
-    : SELECT | DELETE | INSERT
-    ;
-
 qualifiedName
     : identifier ('.' identifier)*
-    ;
-
-grantor
-    : principal             #specifiedPrincipal
-    | CURRENT_USER          #currentUserGrantor
-    | CURRENT_ROLE          #currentRoleGrantor
-    ;
-
-principal
-    : identifier            #unspecifiedPrincipal
-    | USER identifier       #userPrincipal
-    | ROLE identifier       #rolePrincipal
-    ;
-
-roles
-    : identifier (',' identifier)*
     ;
 
 identifier
